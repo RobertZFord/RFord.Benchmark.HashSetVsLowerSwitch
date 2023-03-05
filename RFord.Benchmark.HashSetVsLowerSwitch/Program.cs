@@ -12,11 +12,12 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
     }
 
     /*
-    |                 Method | count |      Mean |    Error |   StdDev | Ratio | RatioSD |
-    |----------------------- |------ |----------:|---------:|---------:|------:|--------:|
-    | TransientHashSetLookup |  1000 | 188.39 us | 3.539 us | 4.076 us |  4.36 |    0.13 |
-    | SingletonHashSetLookup |  1000 |  36.72 us | 0.711 us | 1.128 us |  0.85 |    0.03 |
-    |           SwitchLookup |  1000 |  43.26 us | 0.653 us | 0.579 us |  1.00 |    0.00 |
+    |                         Method | count |      Mean |    Error |    StdDev |    Median | Ratio | RatioSD |
+    |------------------------------- |------ |----------:|---------:|----------:|----------:|------:|--------:|
+    |         TransientHashSetLookup |  1000 | 199.35 us | 4.108 us | 12.049 us | 196.48 us |  4.07 |    0.35 |
+    |         SingletonHashSetLookup |  1000 |  38.19 us | 0.802 us |  2.352 us |  37.18 us |  0.78 |    0.07 |
+    | ReadOnlySingletonHashSetLookup |  1000 |  43.95 us | 1.216 us |  3.546 us |  43.06 us |  0.90 |    0.09 |
+    |                   SwitchLookup |  1000 |  49.20 us | 1.151 us |  3.375 us |  48.49 us |  1.00 |    0.00 |
     */
     public class HashSetVsLowerSwitch
     {
@@ -24,6 +25,7 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
 
 #pragma warning disable CS8618
         HashSet<string> _lookup;
+        IReadOnlyCollection<string> _readOnlyLookup;
         Random _random;
         string[] _entrySet;
         string[] _cacheable;
@@ -50,6 +52,11 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
             _entrySet = _cacheable.Concat(_notCacheable).ToArray();
 
             _lookup = new HashSet<string>(
+                collection: _cacheable.Select(x => x.ToLowerInvariant()),
+                comparer: StringComparer.OrdinalIgnoreCase
+            );
+
+            _readOnlyLookup = new HashSet<string>(
                 collection: _cacheable.Select(x => x.ToLowerInvariant()),
                 comparer: StringComparer.OrdinalIgnoreCase
             );
@@ -98,6 +105,21 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
             }
         }
 
+        // this one runs slightly slower than the HashSet<T> one.  I suspect
+        // it's because the `.Contains()` call is a O(n) lookup (as per REF) vs
+        // a HashSet's O(1) lookup.
+        // REF: https://github.com/dotnet/runtime/blob/main/src/libraries/System.Linq/src/System/Linq/Contains.cs
+        [Benchmark]
+        [ArgumentsSource(nameof(Count))]
+        public void ReadOnlySingletonHashSetLookup(int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                string incomingSample = getEntry();
+                bool match = readOnlyHashSetLookup(incomingSample);
+            }
+        }
+
         [Benchmark(Baseline = true)]
         [ArgumentsSource(nameof(Count))]
         public void SwitchLookup(int count)
@@ -121,6 +143,8 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
                     return false;
             }
         }
+
+        private bool readOnlyHashSetLookup(string entry) => _readOnlyLookup.Contains(entry);
 
         private bool hashSetLookup(string entry) => _lookup.Contains(entry);
 
