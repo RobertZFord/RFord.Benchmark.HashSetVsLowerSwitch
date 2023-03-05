@@ -25,7 +25,7 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
 
 #pragma warning disable CS8618
         HashSet<string> _lookup;
-        IReadOnlyCollection<string> _readOnlyLookup;
+        IReadOnlyCollection<string> _readOnlyCollectionLookup;
         Random _random;
         string[] _entrySet;
         string[] _cacheable;
@@ -56,7 +56,7 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
                 comparer: StringComparer.OrdinalIgnoreCase
             );
 
-            _readOnlyLookup = new HashSet<string>(
+            _readOnlyCollectionLookup = new HashSet<string>(
                 collection: _cacheable.Select(x => x.ToLowerInvariant()),
                 comparer: StringComparer.OrdinalIgnoreCase
             );
@@ -111,12 +111,12 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
         // REF: https://github.com/dotnet/runtime/blob/main/src/libraries/System.Linq/src/System/Linq/Contains.cs
         [Benchmark]
         [ArgumentsSource(nameof(Count))]
-        public void ReadOnlySingletonHashSetLookup(int count)
+        public void ReadOnlyCollectionSingletonHashSetLookup(int count)
         {
             for (int i = 0; i < count; i++)
             {
                 string incomingSample = getEntry();
-                bool match = readOnlyHashSetLookup(incomingSample);
+                bool match = readOnlyCollectionHashSetLookup(incomingSample);
             }
         }
 
@@ -144,7 +144,7 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
             }
         }
 
-        private bool readOnlyHashSetLookup(string entry) => _readOnlyLookup.Contains(entry);
+        private bool readOnlyCollectionHashSetLookup(string entry) => _readOnlyCollectionLookup.Contains(entry);
 
         private bool hashSetLookup(string entry) => _lookup.Contains(entry);
 
