@@ -12,12 +12,13 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
     }
 
     /*
-    |                         Method | count |      Mean |    Error |    StdDev |    Median | Ratio | RatioSD |
-    |------------------------------- |------ |----------:|---------:|----------:|----------:|------:|--------:|
-    |         TransientHashSetLookup |  1000 | 199.35 us | 4.108 us | 12.049 us | 196.48 us |  4.07 |    0.35 |
-    |         SingletonHashSetLookup |  1000 |  38.19 us | 0.802 us |  2.352 us |  37.18 us |  0.78 |    0.07 |
-    | ReadOnlySingletonHashSetLookup |  1000 |  43.95 us | 1.216 us |  3.546 us |  43.06 us |  0.90 |    0.09 |
-    |                   SwitchLookup |  1000 |  49.20 us | 1.151 us |  3.375 us |  48.49 us |  1.00 |    0.00 |
+    |                                   Method | count |      Mean |    Error |    StdDev | Ratio | RatioSD |
+    |----------------------------------------- |------ |----------:|---------:|----------:|------:|--------:|
+    |                   TransientHashSetLookup |  1000 | 186.90 us | 4.702 us | 13.490 us |  4.24 |    0.26 |
+    |                   SingletonHashSetLookup |  1000 |  37.44 us | 0.747 us |  2.021 us |  0.85 |    0.06 |
+    | ReadOnlyCollectionSingletonHashSetLookup |  1000 |  41.99 us | 0.838 us |  2.039 us |  0.95 |    0.06 |
+    |        ReadOnlySetSingletonHashSetLookup |  1000 |  38.22 us | 0.754 us |  1.558 us |  0.87 |    0.03 |
+    |                             SwitchLookup |  1000 |  44.07 us | 0.800 us |  1.422 us |  1.00 |    0.00 |
     */
     public class HashSetVsLowerSwitch
     {
@@ -26,6 +27,7 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
 #pragma warning disable CS8618
         HashSet<string> _lookup;
         IReadOnlyCollection<string> _readOnlyCollectionLookup;
+        IReadOnlySet<string> _readOnlySetLookup;
         Random _random;
         string[] _entrySet;
         string[] _cacheable;
@@ -57,6 +59,11 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
             );
 
             _readOnlyCollectionLookup = new HashSet<string>(
+                collection: _cacheable.Select(x => x.ToLowerInvariant()),
+                comparer: StringComparer.OrdinalIgnoreCase
+            );
+
+            _readOnlySetLookup = new HashSet<string>(
                 collection: _cacheable.Select(x => x.ToLowerInvariant()),
                 comparer: StringComparer.OrdinalIgnoreCase
             );
@@ -120,6 +127,19 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
             }
         }
 
+        // this one is a O(1) lookup, and is more appropriate for an immutable
+        // singleton
+        [Benchmark]
+        [ArgumentsSource(nameof(Count))]
+        public void ReadOnlySetSingletonHashSetLookup(int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                string incomingSample = getEntry();
+                bool match = readOnlySetHashSetLookup(incomingSample);
+            }
+        }
+
         [Benchmark(Baseline = true)]
         [ArgumentsSource(nameof(Count))]
         public void SwitchLookup(int count)
@@ -143,6 +163,8 @@ namespace RFord.Benchmark.HashSetVsLowerSwitch
                     return false;
             }
         }
+
+        private bool readOnlySetHashSetLookup(string entry) => _readOnlySetLookup.Contains(entry);
 
         private bool readOnlyCollectionHashSetLookup(string entry) => _readOnlyCollectionLookup.Contains(entry);
 
